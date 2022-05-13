@@ -44,12 +44,12 @@ uint32_t GetHashCode( std::string &str)
 
     return (hash1 + (hash2 * 1566083941));
 }
-#define ATTEMPT (uint32_t(-1) - 1u)
+#define ATTEMPT (1000000001)
 
 int main()
 {
     std::string str{"Hello World" };
-    std::vector<std::string> vec_str{"rea7YDSN2qcJ7jwWXwQ2" };
+    std::vector<std::string> vec_str{"rea7YDSN2qcJ7jwWXwQ2","NdHUNr4ctw2LXIHjHw8U","5khkqv7pHsM8aqZOL5Xm" };
 
     const auto LookUpHash = GetHashCode(str);
 
@@ -57,6 +57,7 @@ int main()
     for (auto & str_item :vec_str)
         std::cout << str_item << ": " << std::hex << "0x" <<  GetHashCode(str_item) << "\n";
 
+    std::cout << std::flush;
     auto start = std::chrono::high_resolution_clock::now();
     size_t attempt = ATTEMPT + 1u;
     while(--attempt) {
@@ -77,7 +78,7 @@ int main()
 
     std::cout << std::dec;
     std::cout << "Duration: " << diff.count() << "\n";
-    std::cout << "HPS: " << ATTEMPT/diff.count() << "\n";
+    std::cout << "HPS: " << (ATTEMPT+1u - attempt)/diff.count() << "\n";
     std::cout << std::flush;
     return 0;
 }
