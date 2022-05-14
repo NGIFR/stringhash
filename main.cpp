@@ -5,6 +5,12 @@
 #include <vector>
 #include <thread>
 #include <future>
+#include <condition_variable>
+#include <mutex>
+#include <optional>
+
+//for test only
+#include <set>
 
 std::string random_string(std::string::size_type length)
 {
@@ -47,29 +53,31 @@ uint32_t GetHashCode( std::string &str)
     return (hash1 + (hash2 * 1566083941));
 }
 
-std::string findSameHash(const uint32_t nb_trial, const uint32_t lookuphash, const uint32_t str_size)
+std::string findSameHash(const uint32_t nb_trial, const uint32_t lookuphash, const uint32_t str_size, bool flag_run = true)
 {
-    std::string ret{""};
+    std::string ret;
 
     size_t attempt = (size_t)nb_trial + 1u;
-    while(--attempt) {
+    while((--attempt) && flag_run) {
         auto str  = random_string(str_size);
         auto hash = GetHashCode(str);
         if ( lookuphash == hash ) {
             ret = str;
             break;
         }
-
     }
-
     return ret;
 }
 
-#define ATTEMPT (1000000000)
+#define ATTEMPT (10000000)
+
+
 
 int main()
 {
+    const size_t awaited_collision_str_nb = 3;
     std::string str{"Hello World" };
+    //previously found collision for "Hello World" string
     std::vector<std::string> vec_str{"rea7YDSN2qcJ7jwWXwQ2","NdHUNr4ctw2LXIHjHw8U","5khkqv7pHsM8aqZOL5Xm" };
 
     const auto LookUpHash = GetHashCode(str);
@@ -79,11 +87,40 @@ int main()
         std::cout << str_item << ": " << std::hex << "0x" <<  GetHashCode(str_item) << "\n";
 
     auto processor_count = std::thread::hardware_concurrency();
-    if ( !  processor_count ) processor_count = 1;
+    if ( !  processor_count ) processor_count = 1u;
+    auto nb_task = (processor_count == 1u) ? 1u : processor_count - 1u;
 
-    auto lmbd = [=]() { return findSameHash(ATTEMPT,LookUpHash,20);};
+    std::cout << "Number of // thread used: " << nb_task << "\n" << std::flush;
 
-    std::vector<std::future<std::string>> fut_vec;
+    bool flag_run = true;
+    auto lmbd = [&]() { return findSameHash(ATTEMPT,LookUpHash,20,flag_run);};
+
+    std::vector<std::string> results;
+    std::vector<std::future<std::string>> fut_vec(nb_task);
+    for ( auto & item : fut_vec)
+        item = std::async(std::launch::async,lmbd);
+
+    int i = 0;
+
+    while(awaited_collision_str_nb > results.size()) {
+        //first lean approach
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        for ( auto & item : fut_vec) {
+            if ( std::future_status::ready == item.wait_for(std::chrono::milliseconds(0))) {
+                std::string  str = item.get();
+                if (!str.empty()) {
+                    std::cout << str << "\n" << std::flush;
+                    results.push_back(str);
+                }
+                std::cout << "Reload\n" << std::flush;
+                item = std::async(std::launch::async,lmbd);
+            }
+        }
+
+        std::cout << ++i << "\n" << std::flush;
+
+    }
+    flag_run = false;
 
     return 0;
 }
@@ -106,4 +143,11 @@ std::cout << "remaining attempts: " << std::dec << attempt << "\n";
    std::cout << "Duration: " << diff.count() << "\n";
    std::cout << "HPS: " << ATTEMPT/diff.count() << "\n";
    std::cout << std::flush;
+
+   typedef struct {
+       std::mutex cv_m;
+       std::condition_variable cv;
+   }st_context_t;
+
+    st_context_t context { std::mutex(), std::condition_variable()};
 #endif
