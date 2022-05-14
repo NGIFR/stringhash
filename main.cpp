@@ -3,6 +3,14 @@
 #include <random>
 #include <chrono>
 #include <vector>
+#include <thread>
+#include <future>
+#include <condition_variable>
+#include <mutex>
+#include <optional>
+
+//for test only
+#include <set>
 
 std::string random_string(std::string::size_type length)
 {
@@ -44,11 +52,32 @@ uint32_t GetHashCode( std::string &str)
 
     return (hash1 + (hash2 * 1566083941));
 }
-#define ATTEMPT (1000000001)
+
+std::string findSameHash(const uint32_t nb_trial, const uint32_t lookuphash, const uint32_t str_size, bool flag_run = true)
+{
+    std::string ret;
+
+    size_t attempt = (size_t)nb_trial + 1u;
+    while((--attempt) && flag_run) {
+        auto str  = random_string(str_size);
+        auto hash = GetHashCode(str);
+        if ( lookuphash == hash ) {
+            ret = str;
+            break;
+        }
+    }
+    return ret;
+}
+
+#define ATTEMPT (100000000)
+
+
 
 int main()
 {
+    const size_t awaited_collision_str_nb = 3;
     std::string str{"Hello World" };
+    //previously found collision for "Hello World" string
     std::vector<std::string> vec_str{"rea7YDSN2qcJ7jwWXwQ2","NdHUNr4ctw2LXIHjHw8U","5khkqv7pHsM8aqZOL5Xm" };
 
     const auto LookUpHash = GetHashCode(str);
@@ -57,28 +86,77 @@ int main()
     for (auto & str_item :vec_str)
         std::cout << str_item << ": " << std::hex << "0x" <<  GetHashCode(str_item) << "\n";
 
-    std::cout << std::flush;
-    auto start = std::chrono::high_resolution_clock::now();
-    size_t attempt = ATTEMPT + 1u;
-    while(--attempt) {
-        auto str  = random_string(20);
-        auto hash = GetHashCode(str);
-        if ( LookUpHash == hash ) {
-            std::cout << str << "\n";
-            std::cout << std::hex << "0x" <<  hash << "\n";
-            std::cout << "remaining attempts: " << std::dec << attempt << "\n";
-            break;
+    auto processor_count = std::thread::hardware_concurrency();
+    if ( !  processor_count ) processor_count = 1u;
+    auto nb_task = (processor_count == 1u) ? 1u : processor_count - 1u;
+
+    std::cout << "Number of // thread(s) used: " << std::dec << nb_task << "\n" << std::flush;
+
+    bool flag_run = true;
+    auto lmbd = [&]() { return findSameHash(ATTEMPT,LookUpHash,20,flag_run);};
+
+    std::vector<std::string> results;
+    std::vector<std::future<std::string>> fut_vec(nb_task);
+    for ( auto & item : fut_vec)
+        item = std::async(std::launch::async,lmbd);
+
+    int i = 0;
+
+    while(awaited_collision_str_nb > results.size()) {
+        //first lean approach
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        for ( auto & item : fut_vec) {
+            if ( std::future_status::ready == item.wait_for(std::chrono::milliseconds(0))) {
+                std::string  str = item.get();
+                if (!str.empty()) {
+                    std::cout << "\n" << str << "\n" << std::flush;
+                    results.push_back(str);
+                }
+
+                item = std::async(std::launch::async,lmbd);
+            }
         }
+
+        std::cout << ++i << "\r" << std::flush;
 
     }
 
-    auto stop = std::chrono::high_resolution_clock::now();
+    //Print results
+    std::cout << "Results: \n";
+    for ( const auto & item : results)
+        std::cout << item << "\n";
 
-    std::chrono::duration<double>  diff = stop - start;
-
-    std::cout << std::dec;
-    std::cout << "Duration: " << diff.count() << "\n";
-    std::cout << "HPS: " << (ATTEMPT+1u - attempt)/diff.count() << "\n";
     std::cout << std::flush;
+
+    //We won't wait explicitely for the futures results
+    //it will be handled in their xtors
+
     return 0;
 }
+
+#if 0
+std::cout << str << "\n";
+std::cout << std::hex << "0x" <<  hash << "\n";
+std::cout << "remaining attempts: " << std::dec << attempt << "\n";
+
+   auto start = std::chrono::high_resolution_clock::now();
+
+   auto stop = std::chrono::high_resolution_clock::now();
+
+   std::chrono::duration<double>  diff = stop - start;
+
+
+
+
+   std::cout << std::dec;
+   std::cout << "Duration: " << diff.count() << "\n";
+   std::cout << "HPS: " << ATTEMPT/diff.count() << "\n";
+   std::cout << std::flush;
+
+   typedef struct {
+       std::mutex cv_m;
+       std::condition_variable cv;
+   }st_context_t;
+
+    st_context_t context { std::mutex(), std::condition_variable()};
+#endif
