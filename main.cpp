@@ -69,7 +69,7 @@ std::string findSameHash(const uint32_t nb_trial, const uint32_t lookuphash, con
     return ret;
 }
 
-#define ATTEMPT (10000000)
+#define ATTEMPT (100000000)
 
 
 
@@ -90,7 +90,7 @@ int main()
     if ( !  processor_count ) processor_count = 1u;
     auto nb_task = (processor_count == 1u) ? 1u : processor_count - 1u;
 
-    std::cout << "Number of // thread used: " << nb_task << "\n" << std::flush;
+    std::cout << "Number of // thread(s) used: " << std::dec << nb_task << "\n" << std::flush;
 
     bool flag_run = true;
     auto lmbd = [&]() { return findSameHash(ATTEMPT,LookUpHash,20,flag_run);};
@@ -109,18 +109,27 @@ int main()
             if ( std::future_status::ready == item.wait_for(std::chrono::milliseconds(0))) {
                 std::string  str = item.get();
                 if (!str.empty()) {
-                    std::cout << str << "\n" << std::flush;
+                    std::cout << "\n" << str << "\n" << std::flush;
                     results.push_back(str);
                 }
-                std::cout << "Reload\n" << std::flush;
+
                 item = std::async(std::launch::async,lmbd);
             }
         }
 
-        std::cout << ++i << "\n" << std::flush;
+        std::cout << ++i << "\r" << std::flush;
 
     }
-    flag_run = false;
+
+    //Print results
+    std::cout << "Results: \n";
+    for ( const auto & item : results)
+        std::cout << item << "\n";
+
+    std::cout << std::flush;
+
+    //We won't wait explicitely for the futures results
+    //it will be handled in their xtors
 
     return 0;
 }
