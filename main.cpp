@@ -95,16 +95,24 @@ int main()
     bool flag_run = true;
     auto lmbd = [&]() { return findSameHash(ATTEMPT,LookUpHash,20,flag_run);};
 
+    auto timepoint = std::chrono::high_resolution_clock::now();
+
     std::vector<std::string> results;
     std::vector<std::future<std::string>> fut_vec(nb_task);
     for ( auto & item : fut_vec)
         item = std::async(std::launch::async,lmbd);
 
     int i = 0;
+    std::condition_variable cv;
+    std::mutex cv_m;
 
     while(awaited_collision_str_nb > results.size()) {
-        //first lean approach
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+        timepoint += std::chrono::milliseconds(1000u);
+
+        std::unique_lock<std::mutex> lk(cv_m);
+        while( std::cv_status::timeout  != cv.wait_until(lk,timepoint )){}
+
         for ( auto & item : fut_vec) {
             if ( std::future_status::ready == item.wait_for(std::chrono::milliseconds(0))) {
                 std::string  str = item.get();
