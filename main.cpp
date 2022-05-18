@@ -7,7 +7,7 @@
 #include <future>
 #include <condition_variable>
 #include <mutex>
-#include <optional>
+
 
 //for test only
 #include <set>
@@ -135,6 +135,8 @@ int main()
         std::cout << item << "\n";
 
     std::cout << std::flush;
+
+    flag_run = false;
 
     //We won't wait explicitely for the futures results
     //it will be handled in their xtors
