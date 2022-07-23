@@ -1,5 +1,5 @@
 # stringhash
-some string hashing, we try to find collision of hash between (different) strings. We will use multithreading to maximize the work performed by the processor.
+Some string hashing, we try to find collision of hash between (different) strings. We will use multithreading to maximize the work performed by the processor.
 
 This piece of code is normally devoted to C#, however the chosen language is here C++ and there is no "built-in" (imho, afaik) hashing function for C++ object.
 So I looked up for a C# hashing function code on Internet (Link given in the source code)
@@ -33,6 +33,7 @@ All stops after 3 found collisions (bare numbers 11, 73 ... are seconds from sta
 
 Execution example on Mac mini M1
 
+```
 16:05:16: Starting /Users/nils/Code/build-stringhash-Qt_6_2_4_for_macOS-Release/stringhash...
 Hello World: 0xc56327ba
 rea7YDSN2qcJ7jwWXwQ2: 0xc56327ba
@@ -50,4 +51,4 @@ sTTFaViJKU6oyHIXzG1P
 nnb1vhOVZeeetAKGssjl
 HPG92uTEzJF1uC6k1akS
 16:10:10: /Users/nils/Code/build-stringhash-Qt_6_2_4_for_macOS-Release/stringhash exited with code 0
-
+```
